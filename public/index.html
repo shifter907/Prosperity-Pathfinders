@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prosperity &amp; Pathfinders</title>
+<script src="/vendor/tailwind.min.js"></script>
+<style>
+  :root { --bg:#09090b; --panel:#18181b; --border:#27272a; --primary:#10b981; }
+  body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+         background: var(--bg); color: #f4f4f5; }
+  .code-font { font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace; }
+  .hide { display: none !important; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius:3px; }
+</style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+
+<div class="max-w-2xl mx-auto px-4 py-10 sm:py-16">
+
+  <header class="text-center mb-10">
+    <div class="inline-flex items-center gap-2 bg-emerald-600 text-zinc-950 px-3 py-1.5 rounded-lg font-black tracking-wider text-sm mb-4">
+      P&amp;P
+    </div>
+    <h1 class="text-2xl sm:text-3xl font-bold tracking-tight">Prosperity &amp; Pathfinders</h1>
+    <p class="text-sm text-zinc-400 mt-2">Lifelong investing &amp; entrepreneurship board RPG &mdash; multiplayer table</p>
+  </header>
+
+  <!-- JOIN -->
+  <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl mb-6">
+    <h2 class="font-bold text-sm uppercase tracking-wide text-zinc-400 mb-4">Join a session</h2>
+    <div class="flex flex-col sm:flex-row gap-3">
+      <input id="join-code" maxlength="5" placeholder="CODE" autocomplete="off"
+             class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg px-4 py-3 text-center text-2xl tracking-[0.4em] code-font uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500">
+      <button id="join-btn"
+              class="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-6 py-3 rounded-lg transition-all">
+        Join
+      </button>
+    </div>
+    <p id="join-error" class="text-xs text-rose-400 mt-2 hide"></p>
+  </section>
+
+  <!-- CREATE -->
+  <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 shadow-xl">
+    <h2 class="font-bold text-sm uppercase tracking-wide text-zinc-400 mb-4">Start a new session</h2>
+
+    <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-2">Session mode</label>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+      <button data-mode="host" class="mode-btn text-left p-3 rounded-lg border transition-all
+              bg-emerald-500/10 border-emerald-500/40">
+        <div class="font-bold text-xs text-emerald-400">Host has controls</div>
+        <div class="text-[10px] text-zinc-400 mt-1 leading-snug">You play a character and can change settings mid-game, force a stalled turn, and remove players.</div>
+      </button>
+      <button data-mode="equal" class="mode-btn text-left p-3 rounded-lg border transition-all
+              bg-zinc-950 border-zinc-800">
+        <div class="font-bold text-xs text-zinc-300">Equal players</div>
+        <div class="text-[10px] text-zinc-400 mt-1 leading-snug">Nobody holds live controls. You set the economy below now, and it is locked for the whole session.</div>
+      </button>
+    </div>
+
+    <button id="toggle-advanced" class="text-[10px] text-zinc-500 hover:text-zinc-300 mb-3">
+      &#9656; Economic settings
+    </button>
+
+    <div id="advanced" class="hide grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 pb-5 border-b border-zinc-800">
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Food/Utils per turn</label>
+        <input type="number" data-cfg="fixedFood" value="16000" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Mortgage rate %</label>
+        <input type="number" step="0.1" data-cfg="interestRate" value="5" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Tax/Ins %</label>
+        <input type="number" step="0.1" data-cfg="taxInsRate" value="1.5" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Rent baseline $/mo</label>
+        <input type="number" data-cfg="rentBaseline" value="1800" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Resi yield %/mo</label>
+        <input type="number" step="0.1" data-cfg="resiRentYield" value="1" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-500 mb-1">Comm yield %/mo</label>
+        <input type="number" step="0.1" data-cfg="commRentYield" value="1.2" class="cfg w-full bg-zinc-950 border border-zinc-800 rounded p-2 text-xs code-font">
+      </div>
+    </div>
+
+    <button id="create-btn"
+            class="w-full bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold py-3 rounded-lg transition-all">
+      Create session
+    </button>
+    <p id="create-error" class="text-xs text-rose-400 mt-2 hide"></p>
+  </section>
+
+  <p class="text-center text-[10px] text-zinc-600 mt-8">
+    Turns reconcile once every connected player marks themselves done. Each turn draws a random market card.
+  </p>
+</div>
+
+<script>
+  let mode = 'host';
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      mode = btn.dataset.mode;
+      document.querySelectorAll('.mode-btn').forEach(b => {
+        const on = b.dataset.mode === mode;
+        b.className = 'mode-btn text-left p-3 rounded-lg border transition-all ' +
+          (on ? 'bg-emerald-500/10 border-emerald-500/40' : 'bg-zinc-950 border-zinc-800');
+        b.querySelector('div').className = on
+          ? 'font-bold text-xs text-emerald-400'
+          : 'font-bold text-xs text-zinc-300';
+      });
+    });
+  });
+
+  document.getElementById('toggle-advanced').addEventListener('click', (e) => {
+    const adv = document.getElementById('advanced');
+    adv.classList.toggle('hide');
+    e.target.innerHTML = (adv.classList.contains('hide') ? '&#9656;' : '&#9662;') + ' Economic settings';
+  });
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.remove('hide');
+  }
+
+  document.getElementById('create-btn').addEventListener('click', async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    document.getElementById('create-error').classList.add('hide');
+
+    const config = {};
+    document.querySelectorAll('.cfg').forEach(i => {
+      const v = parseFloat(i.value);
+      if (Number.isFinite(v)) config[i.dataset.cfg] = v;
+    });
+
+    try {
+      const res = await fetch('/api/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode, config })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.code) throw new Error(data.error || 'Could not create the session.');
+      location.href = '/play/' + data.code;
+    } catch (err) {
+      showError('create-error', err.message);
+      btn.disabled = false;
+      btn.textContent = 'Create session';
+    }
+  });
+
+  const codeInput = document.getElementById('join-code');
+  codeInput.addEventListener('input', () => {
+    codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  });
+  codeInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+  document.getElementById('join-btn').addEventListener('click', doJoin);
+
+  async function doJoin() {
+    const code = codeInput.value.trim().toUpperCase();
+    document.getElementById('join-error').classList.add('hide');
+    if (code.length < 4) return showError('join-error', 'Enter the full session code.');
+    try {
+      const res = await fetch('/api/session/' + code);
+      const data = await res.json();
+      if (!data.exists) return showError('join-error', 'No session found with that code.');
+      location.href = '/play/' + code;
+    } catch {
+      showError('join-error', 'Could not reach the server. Check your connection.');
+    }
+  }
+</script>
+</body>
+</html>

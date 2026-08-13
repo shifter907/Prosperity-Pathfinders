@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "prosperity-pathfinders",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-08-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SESSIONS",
+        "class_name": "GameSession"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      // SQLite-backed Durable Objects are the free-plan class.
+      "tag": "v1",
+      "new_sqlite_classes": ["GameSession"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

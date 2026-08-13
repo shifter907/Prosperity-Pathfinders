@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P&amp;P &mdash; Session</title>
+<script src="/vendor/tailwind.min.js"></script>
+<style>
+  body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+         background:#09090b; color:#f4f4f5; }
+  .code-font { font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace; }
+  .hide { display: none !important; }
+  ::-webkit-scrollbar { width:6px; height:6px; }
+  ::-webkit-scrollbar-track { background:#09090b; }
+  ::-webkit-scrollbar-thumb { background:#27272a; border-radius:3px; }
+  .dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+
+<!-- ===== JOIN GATE ===== -->
+<div id="join-gate" class="fixed inset-0 z-50 bg-zinc-950 flex items-center justify-center p-4">
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-md shadow-2xl">
+    <h2 class="font-bold text-lg mb-1">Join session <span id="gate-code" class="code-font text-emerald-400"></span></h2>
+    <p class="text-xs text-zinc-400 mb-5">Pick your character. You'll be able to edit only your own ledger.</p>
+
+    <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Character name</label>
+    <input id="gate-name" maxlength="24" placeholder="e.g. Ada Chen"
+           class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Career</label>
+        <select id="gate-career" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></select>
+      </div>
+      <div>
+        <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Hobby</label>
+        <select id="gate-hobby" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-2.5 text-sm"></select>
+      </div>
+    </div>
+
+    <div id="gate-info" class="bg-zinc-950 border border-zinc-800/80 rounded-lg p-3 text-xs space-y-1 mb-4"></div>
+
+    <button id="gate-join" class="w-full bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold py-2.5 rounded-lg transition-all">
+      Enter session
+    </button>
+    <p id="gate-error" class="text-xs text-rose-400 mt-2 hide"></p>
+    <a href="/" class="block text-center text-[10px] text-zinc-500 hover:text-zinc-300 mt-4">&larr; Back to lobby</a>
+  </div>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header class="border-b border-zinc-800 bg-zinc-900/60 backdrop-blur sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 flex items-center justify-between gap-3">
+    <div class="flex items-center gap-2 sm:gap-4 min-w-0">
+      <a href="/" class="bg-emerald-600 text-zinc-950 px-2 py-1 rounded font-black text-xs shrink-0">P&amp;P</a>
+      <button id="code-chip" title="Copy invite link"
+              class="code-font text-sm sm:text-base font-bold tracking-[0.25em] bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1 rounded transition-all"></button>
+      <span id="turn-chip" class="text-xs code-font bg-zinc-800 px-2.5 py-1 rounded text-emerald-400 shrink-0">Turn 1</span>
+      <span id="mode-chip" class="text-[10px] uppercase font-bold px-2 py-1 rounded border hidden sm:inline"></span>
+    </div>
+    <div class="flex items-center gap-3 shrink-0">
+      <span id="conn-status" class="text-[10px] uppercase font-bold text-zinc-500 flex items-center gap-1.5">
+        <span class="dot bg-zinc-600"></span><span>connecting</span>
+      </span>
+      <button id="host-settings-btn" class="hide text-[10px] font-semibold bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-2.5 py-1.5 rounded">Settings</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-3 sm:px-6 py-5">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- ===== LEFT COLUMN ===== -->
+    <section class="lg:col-span-4 space-y-5">
+
+      <!-- Last turn's market card -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-xl">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+          <h2 class="font-bold text-xs tracking-wide text-zinc-400 uppercase">Last Turn's Market Card</h2>
+          <span id="card-label" class="text-xs code-font bg-zinc-800 px-2 py-0.5 rounded text-emerald-400">&mdash;</span>
+        </div>
+        <div id="card-body" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Table / players -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-xl">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+          <h2 class="font-bold text-xs tracking-wide text-zinc-400 uppercase">At the Table</h2>
+          <span id="ready-count" class="text-[10px] code-font text-zinc-500"></span>
+        </div>
+        <div id="roster" class="space-y-2"></div>
+        <div id="waiting-on" class="text-[10px] text-zinc-500 mt-3 leading-snug"></div>
+        <button id="force-advance-btn" class="hide w-full mt-3 py-2 bg-amber-950/40 hover:bg-amber-900/50 border border-amber-900/50 text-amber-400 text-[10px] font-bold rounded-lg transition-all">
+          Force turn to reconcile
+        </button>
+      </div>
+
+      <!-- Log -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 shadow-xl">
+        <h3 class="font-bold text-[10px] tracking-wider text-zinc-400 uppercase mb-2">Session Log</h3>
+        <div id="log" class="h-40 overflow-y-auto text-[11px] code-font bg-zinc-950 p-3 rounded-lg border border-zinc-800/60 space-y-1"></div>
+      </div>
+    </section>
+
+    <!-- ===== RIGHT COLUMN ===== -->
+    <section class="lg:col-span-8 space-y-5">
+
+      <!-- Your dossier -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-xl">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3 mb-4">
+          <div>
+            <h2 class="font-bold text-base flex items-center gap-2">
+              Your Dossier &mdash; <span id="me-name" class="text-emerald-400"></span>
+            </h2>
+            <p id="me-sub" class="text-[11px] text-zinc-400 mt-0.5"></p>
+          </div>
+          <button id="ready-btn" class="px-5 py-2.5 rounded-lg font-bold text-xs transition-all shrink-0"></button>
+        </div>
+        <div id="me-metrics" class="max-w-lg"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-5 shadow-xl">
+        <div class="flex gap-1 border-b border-zinc-800 pb-3 mb-4 overflow-x-auto">
+          <button data-tab="invest" class="tab-btn px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Invest / Sell</button>
+          <button data-tab="borrow" class="tab-btn px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Borrow</button>
+          <button data-tab="property" class="tab-btn px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Real Estate</button>
+          <button data-tab="housing" class="tab-btn px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Housing</button>
+          <button data-tab="ledger" class="tab-btn px-3 py-1.5 text-xs font-bold rounded-lg whitespace-nowrap">Ledger</button>
+        </div>
+
+        <!-- Invest / sell -->
+        <div data-panel="invest" class="tab-panel space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <button id="tx-buy" class="py-2 text-xs font-bold rounded-lg border transition-all">Invest Cash</button>
+            <button id="tx-sell" class="py-2 text-xs font-bold rounded-lg border transition-all">Sell Asset</button>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Category</label>
+              <select id="tx-category" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs">
+                <option value="vti">Total Stock Market (VTI)</option>
+                <option value="iyw">Tech ETF (IYW)</option>
+                <option value="ixc">Energy ETF (IXC)</option>
+                <option value="bonds">Bonds</option>
+                <option value="crypto">Total Crypto Market</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Amount ($)</label>
+              <input type="number" id="tx-amount" placeholder="5000" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+          </div>
+          <button id="tx-submit" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-bold py-2 rounded-lg text-xs transition-all">Execute</button>
+          <div class="pt-3 border-t border-zinc-800">
+            <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Pay down debt ($)</label>
+            <div class="flex gap-2">
+              <input type="number" id="paydebt-amount" placeholder="2500" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+              <button id="paydebt-btn" class="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 px-4 rounded-lg text-xs font-bold">Pay</button>
+            </div>
+            <p class="text-[10px] text-zinc-500 mt-1.5">Applies to mortgage first, then other debts, then loans. Overpayment is never charged.</p>
+          </div>
+        </div>
+
+        <!-- Borrow -->
+        <div data-panel="borrow" class="tab-panel hide space-y-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Amount ($)</label>
+              <input type="number" id="loan-amount" placeholder="20000" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Rate (%)</label>
+              <input type="number" step="0.1" id="loan-rate" value="7.5" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Payments</label>
+              <select id="loan-mode" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs">
+                <option value="auto">Automatic</option>
+                <option value="manual">Manual</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Structure</label>
+              <select id="loan-type" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs">
+                <option value="amortized">Amortized</option>
+                <option value="interest">Interest Only</option>
+              </select>
+            </div>
+          </div>
+          <div id="loan-term-row">
+            <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Term (months)</label>
+            <input type="number" id="loan-term" value="60" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+          </div>
+          <div id="loan-preview" class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] bg-zinc-950 p-3 rounded border border-zinc-800/60 code-font"></div>
+          <button id="loan-submit" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-bold py-2 rounded-lg text-xs transition-all">Take loan</button>
+          <div id="loans-list" class="pt-3 border-t border-zinc-800 space-y-2"></div>
+        </div>
+
+        <!-- Real estate -->
+        <div data-panel="property" class="tab-panel hide space-y-3">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Type</label>
+              <select id="prop-category" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs">
+                <option value="resi">Residential</option>
+                <option value="comm">Commercial</option>
+              </select>
+            </div>
+            <div>
+              <label id="prop-sel-label" class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Units</label>
+              <select id="prop-selection" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs"></select>
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Price ($)</label>
+              <input type="number" id="prop-price" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Down ($)</label>
+              <input type="number" id="prop-down" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+          </div>
+          <div id="prop-preview" class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] bg-zinc-950 p-3 rounded border border-zinc-800/60 code-font"></div>
+          <button id="prop-submit" class="w-full bg-zinc-100 hover:bg-white text-zinc-950 font-bold py-2 rounded-lg text-xs transition-all">Buy property</button>
+          <div id="props-list" class="pt-3 border-t border-zinc-800 space-y-2"></div>
+        </div>
+
+        <!-- Housing -->
+        <div data-panel="housing" class="tab-panel hide space-y-3">
+          <div id="housing-status" class="text-xs text-zinc-400"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Monthly rent ($)</label>
+              <input type="number" id="rent-input" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+            </div>
+            <div class="flex items-end">
+              <button id="set-renting" class="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 py-2 rounded-lg text-xs font-bold">Set renting</button>
+            </div>
+          </div>
+          <div class="pt-3 border-t border-zinc-800">
+            <div class="text-[10px] uppercase font-bold text-emerald-400 mb-2">Buy a primary residence</div>
+            <div class="grid grid-cols-2 gap-3 mb-2">
+              <div>
+                <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Price ($)</label>
+                <input type="number" id="home-price" placeholder="350000" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+              </div>
+              <div>
+                <label class="block text-[10px] uppercase font-bold text-zinc-400 mb-1">Down payment ($)</label>
+                <input type="number" id="home-down" placeholder="35000" class="w-full bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+              </div>
+            </div>
+            <button id="home-buy" class="w-full bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-800/40 text-emerald-400 font-bold py-2 rounded-lg text-xs">Buy residence</button>
+          </div>
+          <div id="mortgage-block" class="hide pt-3 border-t border-zinc-800 space-y-2">
+            <div class="text-[10px] uppercase font-bold text-zinc-400">Mortgage</div>
+            <div id="mortgage-info" class="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] code-font"></div>
+            <div class="flex gap-2">
+              <input type="number" id="extra-principal" placeholder="Extra payment" class="flex-1 bg-zinc-950 border border-zinc-800 rounded-lg py-2 px-3 text-xs code-font">
+              <button id="extra-btn" class="bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold px-4 rounded-lg text-xs">Apply</button>
+              <button id="payoff-btn" class="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-900/50 text-rose-400 font-bold px-4 rounded-lg text-xs">Payoff</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ledger -->
+        <div data-panel="ledger" class="tab-panel hide space-y-3">
+          <p class="text-[10px] text-zinc-500">Direct edits to your own ledger. Blank fields are read as zero.</p>
+          <div id="ledger-fields" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+          <button id="ledger-save" class="w-full bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold py-2 rounded-lg text-xs transition-all">Save ledger</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<!-- ===== HOST SETTINGS MODAL ===== -->
+<div id="settings-modal" class="hide fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+  <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 w-full max-w-lg shadow-2xl">
+    <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+      <h3 class="font-bold">Session Settings</h3>
+      <button id="settings-close" class="text-zinc-500 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+    <div id="settings-fields" class="grid grid-cols-2 gap-3 mb-4"></div>
+    <button id="settings-save" class="w-full bg-emerald-600 hover:bg-emerald-500 text-zinc-950 font-bold py-2.5 rounded-lg text-xs">Save settings</button>
+  </div>
+</div>
+
+<div id="toast" class="fixed bottom-5 right-5 z-50 translate-y-24 opacity-0 transition-all duration-300 pointer-events-none px-4 py-3 rounded-lg shadow-xl text-xs font-bold"></div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>
