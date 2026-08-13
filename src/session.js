@@ -13,6 +13,7 @@ import {
     loanPaymentPerTurn, advanceLoanOneTurn, describeLoan, recomputeLoanTotals,
     calculatePlayerNetWorth
 } from '../public/shared/engine.js';
+import { SESSION_TTL_MS } from './registry.js';
 
 const MAX_PLAYERS = 8;
 const MAX_LOG = 200;
@@ -22,6 +23,10 @@ export class GameSession {
         this.ctx = ctx;
         this.env = env;
         this.state = null;
+        // Set while the expiry alarm is tearing the session down. Closing the sockets
+        // fires webSocketClose -> markPresence -> save(), which would rewrite state and
+        // re-arm the alarm, resurrecting the session we are in the middle of deleting.
+        this.expiring = false;
     }
 
     async load() {
@@ -29,8 +34,69 @@ export class GameSession {
         return this.state;
     }
 
+    // Overridable so the expiry path can be exercised for real in local testing
+    // (`wrangler dev --var SESSION_TTL_MS:5000`) instead of waiting seven days.
+    ttl() {
+        const override = Number(this.env.SESSION_TTL_MS);
+        return Number.isFinite(override) && override > 0 ? override : SESSION_TTL_MS;
+    }
+
     async save() {
+        if (this.expiring || !this.state) return;
+        this.state.expiresAt = Date.now() + this.ttl();
         await this.ctx.storage.put('state', this.state);
+        // Setting an alarm replaces any existing one, so the deadline is always
+        // measured from the most recent change to the session.
+        await this.ctx.storage.setAlarm(this.state.expiresAt);
+    }
+
+    // Fires SESSION_TTL_MS after the last change. Nothing has touched this session
+    // for a week, so remove it entirely.
+    async alarm() {
+        const state = await this.load();
+        const code = state ? state.code : null;
+        this.expiring = true;
+
+        const days = Math.max(1, Math.round(this.ttl() / 86400000));
+        this.broadcast({
+            type: 'expired',
+            message: `This session expired after ${days} day${days === 1 ? '' : 's'} of inactivity.`
+        });
+        for (const ws of this.ctx.getWebSockets()) {
+            try { ws.close(1000, 'session expired'); } catch { /* already gone */ }
+        }
+
+        if (code) await this.reportToRegistry({ code, deleted: true });
+
+        // deleteAll() only clears the alarm on compatibility dates from 2026-02-24;
+        // deleting it explicitly keeps this correct on any date.
+        await this.ctx.storage.deleteAlarm();
+        await this.ctx.storage.deleteAll();
+        this.state = null;
+    }
+
+    // Best-effort: the lobby board is cosmetic, so a registry hiccup must never
+    // break gameplay.
+    async reportToRegistry(payload) {
+        try {
+            const stub = this.env.REGISTRY.get(this.env.REGISTRY.idFromName('global'));
+            await stub.fetch(new Request('https://registry/report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }));
+        } catch { /* ignore */ }
+    }
+
+    async reportPresence(excludeWs = null) {
+        const state = this.state;
+        if (!state) return;
+        await this.reportToRegistry({
+            code: state.code,
+            players: state.players.length,
+            connected: this.connectedPlayerIds(excludeWs).size,
+            turn: state.turn
+        });
     }
 
     async fetch(request) {
@@ -99,12 +165,14 @@ export class GameSession {
         }
     }
 
+    // The closing socket is still listed by getWebSockets() while these handlers run,
+    // so it must be excluded or the player looks permanently online.
     async webSocketClose(ws) {
-        await this.markPresence();
+        await this.markPresence(ws);
     }
 
     async webSocketError(ws) {
-        await this.markPresence();
+        await this.markPresence(ws);
     }
 
     send(ws, payload) {
@@ -122,9 +190,10 @@ export class GameSession {
         try { return ws.deserializeAttachment() || {}; } catch { return {}; }
     }
 
-    connectedPlayerIds() {
+    connectedPlayerIds(excludeWs = null) {
         const ids = new Set();
         for (const ws of this.ctx.getWebSockets()) {
+            if (excludeWs && ws === excludeWs) continue;
             const { playerId } = this.attachmentOf(ws);
             if (playerId) ids.add(playerId);
         }
@@ -133,16 +202,17 @@ export class GameSession {
 
     // Presence is derived from live sockets rather than stored, so a hard refresh or
     // a dropped connection can never leave a player wrongly marked online.
-    async markPresence() {
+    async markPresence(excludeWs = null) {
         const state = await this.load();
         if (!state) return;
-        const online = this.connectedPlayerIds();
+        const online = this.connectedPlayerIds(excludeWs);
         let changed = false;
         for (const p of state.players) {
             const isOnline = online.has(p.id);
             if (p.connected !== isOnline) { p.connected = isOnline; changed = true; }
         }
         if (changed) await this.save();
+        await this.reportPresence(excludeWs);
         this.broadcastState();
     }
 
@@ -153,6 +223,7 @@ export class GameSession {
             code: s.code,
             mode: s.mode,
             hostId: s.hostId,
+            expiresAt: s.expiresAt || null,
             turn: s.turn,
             lastCard: s.lastCard,
             config: s.config,
@@ -214,6 +285,7 @@ export class GameSession {
             ws.serializeAttachment({ playerId: id });
             this.log(`${name} joined as ${(CAREERS[player.career] || {}).name}.`);
             await this.save();
+            await this.reportPresence();
 
             this.send(ws, { type: 'you', playerId: id, secret });
             this.broadcastState();
@@ -320,6 +392,7 @@ export class GameSession {
         for (const line of lines) this.log(line);
 
         await this.save();
+        await this.reportPresence();
         this.broadcast({ type: 'turn', card, turn: state.turn });
         this.broadcastState();
     }

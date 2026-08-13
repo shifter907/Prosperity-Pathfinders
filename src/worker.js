@@ -7,6 +7,7 @@
 //   everything else            -> static assets from ./public
 
 export { GameSession } from './session.js';
+export { SessionRegistry } from './registry.js';
 
 // Ambiguous glyphs (0/O, 1/I/L) are omitted so codes can be read aloud reliably.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -81,6 +82,15 @@ export default {
             }));
             if (!res.ok) return res;
             return json({ code });
+        }
+
+        if (path === '/api/stats' && request.method === 'GET') {
+            const registry = env.REGISTRY.get(env.REGISTRY.idFromName('global'));
+            const res = await registry.fetch(new Request('https://registry/stats'));
+            const stats = await res.json();
+            return new Response(JSON.stringify(stats), {
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+            });
         }
 
         const existsMatch = path.match(/^\/api\/session\/([A-Za-z0-9]+)$/);

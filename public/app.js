@@ -23,6 +23,7 @@ let myId = null;
 let mySecret = localStorage.getItem(SECRET_KEY) || null;
 let txType = 'buy';
 let reconnectDelay = 1000;
+let expired = false;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c =>
@@ -70,6 +71,12 @@ function connect() {
             render();
         } else if (msg.type === 'turn') {
             toast(`Turn reconciled — market card ${msg.card.label}`);
+        } else if (msg.type === 'expired') {
+            // The session deleted itself; stop reconnecting and send the player home.
+            expired = true;
+            localStorage.removeItem(SECRET_KEY);
+            alert(msg.message);
+            location.href = '/';
         } else if (msg.type === 'error') {
             toast(msg.message, 'err');
             $('gate-error').textContent = msg.message;
@@ -79,6 +86,7 @@ function connect() {
     });
 
     ws.addEventListener('close', () => {
+        if (expired) return;
         setConn('offline', 'bg-rose-500');
         // Exponential backoff keeps a dead session from hammering the Worker.
         setTimeout(connect, reconnectDelay);
@@ -113,6 +121,16 @@ function render() {
         (state.mode === 'host'
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
             : 'bg-zinc-800 border-zinc-700 text-zinc-400');
+
+    const chip = $('expiry-chip');
+    if (state.expiresAt) {
+        const days = (state.expiresAt - Date.now()) / 86400000;
+        chip.textContent = days > 1
+            ? `expires in ${Math.round(days)} days`
+            : `expires in ${Math.max(1, Math.round(days * 24))}h`;
+    } else {
+        chip.textContent = '';
+    }
 
     const joined = !!me();
     $('join-gate').classList.toggle('hide', joined);

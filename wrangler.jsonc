@@ -7,11 +7,19 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  "routes": [
+    { "pattern": "pathfinders.sorensencreative.com", "custom_domain": true }
+  ],
   "durable_objects": {
     "bindings": [
       {
         "name": "SESSIONS",
         "class_name": "GameSession"
+      },
+      {
+        // Single global instance that tallies live sessions for the lobby board.
+        "name": "REGISTRY",
+        "class_name": "SessionRegistry"
       }
     ]
   },
@@ -20,6 +28,10 @@
       // SQLite-backed Durable Objects are the free-plan class.
       "tag": "v1",
       "new_sqlite_classes": ["GameSession"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["SessionRegistry"]
     }
   ],
   "observability": {
