@@ -30,6 +30,29 @@ function sessionStub(env, code) {
     return env.SESSIONS.get(env.SESSIONS.idFromName(code));
 }
 
+// The assets binding answers /game.html with a 307 to /game (it strips .html).
+// Passing that redirect through would bounce the browser off /play/CODE and lose the
+// session code, so resolve it here and answer 200 at the URL the player is on.
+async function serveAppShell(request, env) {
+    const shell = new URL(request.url);
+    shell.pathname = '/game.html';
+
+    let res = await env.ASSETS.fetch(new Request(shell, { method: 'GET' }));
+    for (let hop = 0; hop < 3 && res.status >= 300 && res.status < 400; hop++) {
+        const location = res.headers.get('location');
+        if (!location) break;
+        res = await env.ASSETS.fetch(new Request(new URL(location, shell), { method: 'GET' }));
+    }
+
+    return new Response(res.body, {
+        status: 200,
+        headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'no-cache'
+        }
+    });
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -81,12 +104,9 @@ export default {
 
         if (path.startsWith('/api/')) return json({ error: 'Not found' }, 404);
 
-        // Deep links like /play/ABCDE are handled client-side; serve the app shell.
-        if (path.startsWith('/play')) {
-            const shell = new URL(request.url);
-            shell.pathname = '/game.html';
-            return env.ASSETS.fetch(new Request(shell, request));
-        }
+        // Deep links like /play/ABCDE are resolved client-side from the URL, so the
+        // browser must stay on that URL.
+        if (path.startsWith('/play')) return serveAppShell(request, env);
 
         return env.ASSETS.fetch(request);
     }
