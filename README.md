@@ -114,16 +114,20 @@ over plain HTTPS using a Gmail account you already control, on any Workers plan.
    Client ID/secret from step 3.
 5. In the left panel, enter the scope `https://www.googleapis.com/auth/gmail.send`,
    click **Authorize APIs**, and sign in as the Gmail account that should send these
-   emails. Then click **Exchange authorization code for tokens** and copy the
-   **Refresh token** it shows.
+   emails — a dedicated account kept separate from your personal inbox (e.g.
+   `tylersorensencreative@gmail.com`) works well here, since the refresh token you're
+   about to generate carries standing send access to whatever account you sign in as.
+   Then click **Exchange authorization code for tokens** and copy the **Refresh
+   token** it shows.
 6. Decide the **From** address:
-   - Simplest: the Gmail address itself (e.g. `tylersorensen22@gmail.com`) — no
+   - Simplest: the Gmail address itself (e.g. `tylersorensencreative@gmail.com`) — no
      further setup.
    - An alias (e.g. `tyler@sorensencreative.com`): first set up Cloudflare **Email
-     Routing** to forward that address to the Gmail account, then in Gmail
-     **Settings → Accounts and Import → Send mail as → Add another email address**
-     and verify it using the code Cloudflare routes through. Once verified, the
-     Gmail API can send as that alias exactly like Gmail's own compose window can.
+     Routing** to forward that address to the Gmail account you signed in as above,
+     then in that account's Gmail **Settings → Accounts and Import → Send mail as →
+     Add another email address** and verify it using the code Cloudflare routes
+     through. Once verified, the Gmail API can send as that alias exactly like
+     Gmail's own compose window can.
 7. Set the four secrets:
    ```bash
    npx wrangler secret put GMAIL_CLIENT_ID
