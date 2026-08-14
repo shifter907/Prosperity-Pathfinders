@@ -71,6 +71,12 @@ function connect() {
             render();
         } else if (msg.type === 'turn') {
             toast(`Turn reconciled — market card ${msg.card.label}`);
+        } else if (msg.type === 'emailResult') {
+            toast(msg.message, msg.ok ? 'ok' : 'err');
+            const btn = $('email-save-btn');
+            btn.disabled = false;
+            btn.textContent = 'Email';
+            if (msg.ok) $('email-save-input').value = '';
         } else if (msg.type === 'expired') {
             // The session deleted itself; stop reconnecting and send the player home.
             expired = true;
@@ -597,6 +603,46 @@ function initActions() {
         send({ type: 'settings', config });
         $('settings-modal').classList.add('hide');
     };
+
+    // Export - download is entirely client-side, since `state` already holds a
+    // secret-free snapshot of the whole session.
+    $('download-save-btn').onclick = () => {
+        if (!state) return;
+        const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `pp-session-${state.code}-turn${state.turn}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast('Save file downloaded');
+    };
+
+    $('email-save-btn').onclick = () => {
+        const email = $('email-save-input').value.trim();
+        if (!email) return toast('Enter an email address', 'err');
+        const btn = $('email-save-btn');
+        btn.disabled = true;
+        btn.textContent = '...';
+        send({ type: 'emailSave', email });
+    };
+    $('email-save-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('email-save-btn').click(); });
+}
+
+// Grays out the Email button (and shows why) when the server has no Gmail
+// credentials configured yet, so players don't hit a guaranteed failure.
+async function checkEmailAvailability() {
+    try {
+        const res = await fetch('/api/email-status');
+        const { configured } = await res.json();
+        if (!configured) {
+            $('email-save-btn').disabled = true;
+            $('email-save-input').disabled = true;
+            $('email-save-hint').classList.remove('hide');
+        }
+    } catch { /* leave the button enabled; the server will report the real error */ }
 }
 
 // --- boot -------------------------------------------------------------------
@@ -610,5 +656,6 @@ if (!CODE) {
     setTxType('buy');
     updateLoanPreview();
     refreshPropSelect(true);
+    checkEmailAvailability();
     connect();
 }

@@ -8,6 +8,7 @@
 
 export { GameSession } from './session.js';
 export { SessionRegistry } from './registry.js';
+import { emailConfigured } from './email.js';
 
 // Ambiguous glyphs (0/O, 1/I/L) are omitted so codes can be read aloud reliably.
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -91,6 +92,10 @@ export default {
             return new Response(JSON.stringify(stats), {
                 headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
             });
+        }
+
+        if (path === '/api/email-status' && request.method === 'GET') {
+            return json({ configured: emailConfigured(env) });
         }
 
         const existsMatch = path.match(/^\/api\/session\/([A-Za-z0-9]+)$/);

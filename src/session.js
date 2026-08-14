@@ -14,9 +14,11 @@ import {
     calculatePlayerNetWorth
 } from '../public/shared/engine.js';
 import { SESSION_TTL_MS } from './registry.js';
+import { sendSaveEmail } from './email.js';
 
 const MAX_PLAYERS = 8;
 const MAX_LOG = 200;
+const EMAIL_COOLDOWN_MS = 30 * 1000;
 
 export class GameSession {
     constructor(ctx, env) {
@@ -329,6 +331,32 @@ export class GameSession {
                 this.requireHostControls(state, me);
                 this.log(`${me.name} forced the turn to reconcile.`);
                 await this.advanceTurn();
+                return;
+            }
+
+            case 'emailSave': {
+                const to = String(msg.email || '').trim();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+                    throw new Error('Enter a valid email address.');
+                }
+                const now = Date.now();
+                if (state.lastEmailSentAt && now - state.lastEmailSentAt < EMAIL_COOLDOWN_MS) {
+                    throw new Error('Please wait a few seconds before sending another save email.');
+                }
+                state.lastEmailSentAt = now;
+                await this.save();
+
+                try {
+                    await sendSaveEmail(this.env, { to, code: state.code, snapshot: this.publicState() });
+                    // The address itself is not broadcast, to keep it private from the
+                    // rest of the table.
+                    this.log(`${me.name} emailed a save snapshot of this session.`);
+                    await this.save();
+                    this.broadcastState();
+                    this.send(ws, { type: 'emailResult', ok: true, message: `Save emailed to ${to}.` });
+                } catch (err) {
+                    this.send(ws, { type: 'emailResult', ok: false, message: err.message || 'Failed to send email.' });
+                }
                 return;
             }
 
