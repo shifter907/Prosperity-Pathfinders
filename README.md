@@ -98,14 +98,20 @@ over plain HTTPS using a Gmail account you already control, on any Workers plan.
 1. **Google Cloud Console** ([console.cloud.google.com](https://console.cloud.google.com)) — create or pick a project, then
    **APIs & Services → Library** → enable the **Gmail API**.
 2. **APIs & Services → OAuth consent screen** — User type **External**. Add the
-   scope `https://www.googleapis.com/auth/gmail.send`. Add your own Gmail address as
-   a test user, then **publish the app to Production**.
-   > Skipping this and leaving it in "Testing" is the classic gotcha: Google expires
-   > refresh tokens from unpublished apps after 7 days, so email would silently stop
-   > working a week in. A single-user app with only the `gmail.send` scope does not
-   > need Google's full verification review to run in Production — you'll just see a
-   > one-time "Google hasn't verified this app" warning during setup, which is normal
-   > and safe to click through since it's your own app on your own account.
+   scope `https://www.googleapis.com/auth/gmail.send`, then click **Publish App**
+   to move it out of Testing before doing anything else.
+   > Skipping this is the classic gotcha, and it fails in two ways. Miss it
+   > entirely and Google expires refresh tokens from Testing-status apps after 7
+   > days, so email silently stops working a week in. Try to authorize *before*
+   > publishing and you'll instead hit a hard **"Access blocked... has not
+   > completed the Google verification process"** screen — that's Testing mode
+   > rejecting an account that was never added as a test user, not a real
+   > verification requirement. A single-user app requesting only the `gmail.send`
+   > scope does not need Google's full verification review to run in Production —
+   > publishing just switches the failure mode from that hard block to a
+   > one-time "Google hasn't verified this app" warning during authorization,
+   > which is normal and safe to click through (Advanced → Go to [app] (unsafe))
+   > since it's your own app on your own account.
 3. **APIs & Services → Credentials** → **Create Credentials → OAuth client ID**,
    type **Web application**, add `https://developers.google.com/oauthplayground` as
    an authorized redirect URI. Note the **Client ID** and **Client secret**.
