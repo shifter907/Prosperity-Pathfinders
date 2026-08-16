@@ -39,9 +39,19 @@ async function getAccessToken(env) {
         })
     });
     if (!res.ok) {
-        // A Testing-status OAuth app issues refresh tokens that silently expire after
-        // 7 days; this is the most common way that shows up.
-        throw new Error(`Gmail token refresh failed (${res.status}). If this OAuth app is still in "Testing" publish status, its refresh token expires after 7 days - switch it to "Production".`);
+        // Surface Google's actual reason (invalid_client, invalid_grant, etc.) instead
+        // of just the HTTP status - that's the difference between "wrong client secret"
+        // and "this token was revoked" and previously got discarded entirely.
+        let detail = '';
+        try {
+            const body = await res.json();
+            detail = body.error_description || body.error || '';
+        } catch { /* non-JSON error body */ }
+        // Secret VALUES never appear here - only whether each is present and how long
+        // it is, which is enough to catch truncation/corruption without exposing them.
+        const shape = ['GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN']
+            .map(k => `${k}:${env[k] ? env[k].length : 'unset'}`).join(' ');
+        throw new Error(`Gmail token refresh failed (${res.status})${detail ? `: ${detail}` : ''}. [${shape}] If this OAuth app is still in "Testing" publish status, its refresh token expires after 7 days - switch it to "Production".`);
     }
     const data = await res.json();
     return data.access_token;

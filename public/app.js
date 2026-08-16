@@ -604,8 +604,16 @@ function initActions() {
         $('settings-modal').classList.add('hide');
     };
 
-    // Export - download is entirely client-side, since `state` already holds a
-    // secret-free snapshot of the whole session.
+    // Export panel lives in its own top-bar-triggered modal, open to every player
+    // (not gated on host status) since it's a personal export, not a game action.
+    $('save-btn').onclick = () => {
+        $('email-save-input').value = '';
+        $('save-modal').classList.remove('hide');
+    };
+    $('save-modal-close').onclick = () => $('save-modal').classList.add('hide');
+
+    // Download is entirely client-side, since `state` already holds a secret-free
+    // snapshot of the whole session.
     $('download-save-btn').onclick = () => {
         if (!state) return;
         const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
